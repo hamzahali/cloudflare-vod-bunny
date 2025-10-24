@@ -49,7 +49,18 @@ class GiveWP_Stripe_Gateway {
      * Constructor
      */
     private function __construct() {
-        add_action('plugins_loaded', array($this, 'init'));
+        add_action('plugins_loaded', array($this, 'init'), 999);
+
+        // Activation hook
+        register_activation_hook(GIVEWP_STRIPE_PLUGIN_FILE, array($this, 'activate'));
+    }
+
+    /**
+     * Plugin activation
+     */
+    public function activate() {
+        // Flush rewrite rules for webhook endpoint
+        flush_rewrite_rules();
     }
 
     /**
@@ -65,8 +76,8 @@ class GiveWP_Stripe_Gateway {
         // Load plugin files
         $this->includes();
 
-        // Register gateway
-        add_filter('give_payment_gateways', array($this, 'register_gateway'));
+        // Register gateway - use priority 10 to ensure proper loading
+        add_filter('give_payment_gateways', array($this, 'register_gateway'), 10);
 
         // Load text domain
         load_plugin_textdomain('givewp-stripe-gateway', false, dirname(plugin_basename(__FILE__)) . '/languages');
