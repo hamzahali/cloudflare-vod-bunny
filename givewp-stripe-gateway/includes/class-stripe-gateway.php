@@ -19,19 +19,25 @@ class GiveWP_Stripe_Gateway_Handler {
         add_action('give_gateway_stripe_custom', array($this, 'process_payment'));
         add_action('give_stripe_custom_cc_form', array($this, 'credit_card_form'));
         add_filter('give_enabled_payment_gateways', array($this, 'check_gateway_requirements'));
+        add_action('admin_notices', array($this, 'admin_notices'));
     }
 
     /**
      * Check if gateway requirements are met
      */
     public function check_gateway_requirements($gateways) {
-        // Check for SSL
-        if (!is_ssl() && !give_is_test_mode()) {
-            unset($gateways['stripe_custom']);
-            add_action('admin_notices', array($this, 'ssl_notice'));
+        // Don't hide gateway in admin - always show it so users can configure it
+        if (is_admin()) {
+            return $gateways;
         }
 
-        // Check for API keys
+        // Check for SSL on frontend
+        if (!is_ssl() && !give_is_test_mode()) {
+            unset($gateways['stripe_custom']);
+            return $gateways;
+        }
+
+        // Check for API keys on frontend
         $test_secret_key = give_get_option('givewp_stripe_gateway_test_secret_key');
         $live_secret_key = give_get_option('givewp_stripe_gateway_live_secret_key');
 
@@ -42,6 +48,55 @@ class GiveWP_Stripe_Gateway_Handler {
         }
 
         return $gateways;
+    }
+
+    /**
+     * Admin notices
+     */
+    public function admin_notices() {
+        // Only show on GiveWP settings pages
+        $screen = get_current_screen();
+        if (!$screen || strpos($screen->id, 'give') === false) {
+            return;
+        }
+
+        // Check if gateway is enabled
+        $enabled_gateways = give_get_enabled_payment_gateways();
+        if (!isset($enabled_gateways['stripe_custom'])) {
+            return;
+        }
+
+        $errors = array();
+
+        // Check for API keys
+        $test_secret_key = give_get_option('givewp_stripe_gateway_test_secret_key');
+        $test_pub_key = give_get_option('givewp_stripe_gateway_test_publishable_key');
+        $live_secret_key = give_get_option('givewp_stripe_gateway_live_secret_key');
+        $live_pub_key = give_get_option('givewp_stripe_gateway_live_publishable_key');
+
+        if (give_is_test_mode()) {
+            if (empty($test_secret_key) || empty($test_pub_key)) {
+                $errors[] = sprintf(
+                    __('Stripe (Custom) is in test mode but API keys are missing. Please <a href="%s">configure your test API keys</a>.', 'givewp-stripe-gateway'),
+                    admin_url('edit.php?post_type=give_forms&page=give-settings&tab=gateways&section=stripe-custom')
+                );
+            }
+        } else {
+            if (empty($live_secret_key) || empty($live_pub_key)) {
+                $errors[] = sprintf(
+                    __('Stripe (Custom) is in live mode but API keys are missing. Please <a href="%s">configure your live API keys</a>.', 'givewp-stripe-gateway'),
+                    admin_url('edit.php?post_type=give_forms&page=give-settings&tab=gateways&section=stripe-custom')
+                );
+            }
+            if (!is_ssl()) {
+                $errors[] = __('Stripe (Custom) requires SSL to be enabled in live mode. Please enable SSL on your site.', 'givewp-stripe-gateway');
+            }
+        }
+
+        // Display errors
+        foreach ($errors as $error) {
+            echo '<div class="notice notice-error"><p>' . $error . '</p></div>';
+        }
     }
 
     /**
