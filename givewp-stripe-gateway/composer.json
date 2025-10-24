@@ -1,0 +1,20 @@
+{
+    "name": "hamzahali/givewp-stripe-gateway",
+    "description": "Custom Stripe payment gateway for GiveWP using Stripe API",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Hamzah Ali",
+            "email": "contact@example.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "classmap": [
+            "includes/"
+        ]
+    }
+}
